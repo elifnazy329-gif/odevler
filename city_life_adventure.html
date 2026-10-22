@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Şehir Hayatı: Şehir Kurma Oyunu</title>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            gold: '#f59e0b',
+                            blue: '#0284c7',
+                            green: '#10b981',
+                            purple: '#8b5cf6',
+                            red: '#ef4444',
+                            bg: '#e0f2fe'
+                        }
+                    },
+                    fontFamily: {
+                        game: ['"Fredoka One"', 'cursive'],
+                        body: ['"Nunito"', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            user-select: none;
+            background-color: #0f172a;
+            color: #334155;
+            overflow-x: hidden;
+        }
+
+        .font-game {
+            font-family: 'Fredoka One', cursive;
+        }
+
+        /* Iso-like City Grid Canvas background */
+        .city-bg {
+            background-color: #38bdf8;
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.2) 0%, transparent 60%),
+                linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+            background-size: 100% 100%, 40px 40px, 40px 40px;
+        }
+
+        /* Buttons Visual Effects */
+        .btn-game {
+            transition: all 0.1s ease;
+            box-shadow: 0 6px 0 rgba(0,0,0,0.25);
+        }
+        .btn-game:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 rgba(0,0,0,0.25);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Building Tile Styling */
+        .building-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .building-card:hover {
+            transform: translateY(-4px);
+        }
+
+        /* Floating Animation */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        /* Bounce Notification */
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            80% { transform: scale(1.05); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .modal-animate {
+            animation: popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col justify-between overflow-hidden bg-slate-900 text-slate-100">
+
+    <header class="bg-slate-800/90 backdrop-blur border-b border-slate-700 p-3 z-20 shadow-md">
+        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-3">
+            
+            <!-- Logo & Title -->
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gradient-to-tr from-amber-500 to-yellow-300 rounded-2xl flex items-center justify-center text-slate-900 shadow-lg font-game text-xl">
+                    <i class="fa-solid font-bold fa-city"></i>
+                </div>
+                <div>
+                    <h1 class="font-game text-lg sm:text-xl text-amber-400 tracking-wide leading-none">Şehir Hayatı</h1>
+                    <span class="text-xs text-slate-400 font-semibold">Casual City Simulator</span>
+                </div>
+            </div>
+
+            <!-- Stats Bar -->
+            <div class="flex items-center space-x-2 sm:space-x-4 bg-slate-900/80 px-4 py-2 rounded-2xl border border-slate-700">
+                <!-- Level / XP -->
+                <div class="flex items-center space-x-2">
+                    <div class="relative flex items-center justify-center">
+                        <i class="fa-solid fa-star text-amber-400 text-2xl"></i>
+                        <span id="player-level" class="absolute font-game text-xs text-slate-900 font-bold">1</span>
+                    </div>
+                    <div class="w-20 sm:w-28 bg-slate-700 h-3 rounded-full overflow-hidden border border-slate-600">
+                        <div id="xp-bar" class="bg-gradient-to-r from-blue-500 to-indigo-500 h-full w-0 transition-all duration-300"></div>
+                    </div>
+                    <span id="xp-text" class="text-xs font-bold text-slate-300 min-w-[45px]">0/100</span>
+                </div>
+
+                <div class="h-6 w-px bg-slate-700"></div>
+
+                <!-- Gold -->
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-coins text-amber-400 text-xl animate-bounce"></i>
+                    <span id="player-gold" class="font-game text-amber-300 text-sm sm:text-base">150</span>
+                </div>
+            </div>
+
+            <!-- Menu Buttons -->
+            <div class="flex items-center space-x-2">
+                <button onclick="openModal('about-modal')" class="btn-game bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm px-3 py-2 rounded-xl border border-amber-300 flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <span class="hidden sm:inline">Oyun Hakkında</span>
+                </button>
+                <button onclick="openModal('script-modal')" class="btn-game bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs sm:text-sm px-3 py-2 rounded-xl border border-sky-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-comment-dots"></i>
+                    <span class="hidden sm:inline">Konuşma Metni Göster</span>
+                </button>
+                <button onclick="resetGame()" title="Oyunu Sıfırla" class="btn-game bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs sm:text-sm p-2 rounded-xl border border-rose-400">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative city-bg">
+        
+        <!-- Left/Main: City Map Grid -->
+        <section class="flex-1 overflow-y-auto p-4 sm:p-6">
+            <div class="max-w-6xl mx-auto">
+                <div class="flex justify-between items-center mb-4 bg-slate-900/60 backdrop-blur p-3 rounded-2xl border border-slate-700/60">
+                    <h2 class="font-game text-lg sm:text-xl text-white flex items-center gap-2">
+                        <i class="fa-solid fa-map-location-dot text-sky-400"></i> Şehir Bölgeleri & Tesisler
+                    </h2>
+                    <span class="text-xs text-slate-300 bg-slate-800 px-3 py-1 rounded-full border border-slate-600">
+                        Sonsuz Mod Aktif ♾️
+                    </span>
+                </div>
+
+                <!-- City Grid Container -->
+                <div id="city-districts-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+                    <!-- Dynamic District Cards Inserted Here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Right/Bottom: Orders & Inventory Sidebar -->
+        <aside class="w-full md:w-80 lg:w-96 bg-slate-800/95 border-t md:border-t-0 md:border-l border-slate-700 flex flex-col h-72 md:h-full z-10 shadow-2xl">
+            <!-- Sidebar Tabs -->
+            <div class="flex border-b border-slate-700 bg-slate-900/50">
+                <button id="tab-orders-btn" onclick="switchTab('orders')" class="flex-1 py-3 font-game text-sm text-amber-400 border-b-2 border-amber-400 flex items-center justify-center gap-2 bg-slate-800">
+                    <i class="fa-solid fa-clipboard-list"></i> Şehir Siparişleri
+                </button>
+                <button id="tab-inventory-btn" onclick="switchTab('inventory')" class="flex-1 py-3 font-game text-sm text-slate-400 border-b-2 border-transparent flex items-center justify-center gap-2 hover:text-slate-200">
+                    <i class="fa-solid fa-box-archive"></i> Depo (<span id="inv-count">0</span>)
+                </button>
+            </div>
+
+            <!-- Tab Content: Orders -->
+            <div id="tab-orders" class="flex-1 overflow-y-auto p-4 space-y-3">
+                <div class="text-xs text-slate-400 mb-2 flex items-center justify-between">
+                    <span>Vatandaşların İstekleri</span>
+                    <span class="text-amber-400 font-semibold"><i class="fa-solid fa-arrows-rotate"></i> Otomatik Yenilenir</span>
+                </div>
+                <div id="orders-list" class="space-y-3">
+                    <!-- Dynamic Orders Inserted Here -->
+                </div>
+            </div>
+
+            <!-- Tab Content: Inventory -->
+            <div id="tab-inventory" class="flex-1 overflow-y-auto p-4 hidden">
+                <div class="text-xs text-slate-400 mb-3">Ürettiğiniz Ürünler & Hizmetler</div>
+                <div id="inventory-list" class="grid grid-cols-2 gap-2">
+                    <!-- Dynamic Inventory Items -->
+                </div>
+            </div>
+        </aside>
+
+    </main>
+
+    <div id="toast-container" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center space-y-2"></div>
+
+    <div id="about-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-3xl p-6 shadow-2xl modal-animate relative">
+            <button onclick="closeModal('about-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="w-12 h-12 bg-amber-500/20 text-amber-400 rounded-2xl flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-circle-info"></i>
+                </div>
+                <div>
+                    <h3 class="font-game text-xl text-white">Oyun Hakkında</h3>
+                    <p class="text-xs text-slate-400">Şehir Hayatı Simulation</p>
+                </div>
+            </div>
+            <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-700/80 text-sm text-slate-300 leading-relaxed space-y-2">
+                <p>
+                    <strong>Şehir Hayatı</strong>, popüler çiftlik simülasyonu Hay Day mantığını modern şehir yaşamına uyarlayan rahatlatıcı (casual) bir şehir geliştirme oyunudur. Oyuncular Fırın, Kahve Dükkanı, Otobüs Durağı ve Teknoloji Parkı gibi çeşitli şehir tesislerinde ürün ve hizmetler üreterek şehir sakinlerinin siparişlerini tamamlar. Tamamlanan her görev oyuncuya Altın ve Deneyim Puanı (XP) kazandırır. Kazandığınız kaynaklarla seviye atladıkça Finans Merkezi, Yeşil Park ve Teknoloji Bölgesi gibi yepsyeni şehir bölgelerinin kilidini açabilir ve modern metropolünüzü sonsuz bir gelişim döngüsünde genişletebilirsiniz.
+                </p>
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeModal('about-modal')" class="btn-game bg-amber-500 hover:bg-amber-400 text-slate-950 font-game px-5 py-2.5 rounded-xl text-sm">
+                    Anladım, Oyuna Dön
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="script-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-3xl p-6 shadow-2xl modal-animate relative">
+            <button onclick="closeModal('script-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="w-12 h-12 bg-sky-500/20 text-sky-400 rounded-2xl flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-comment-dots"></i>
+                </div>
+                <div>
+                    <h3 class="font-game text-xl text-white">Konuşma Metni & Bağlantı</h3>
+                    <p class="text-xs text-slate-400">Paylaşılabilir Oyun Bağlantısı</p>
+                </div>
+            </div>
+            
+            <!-- Textbox area -->
+            <div class="space-y-3">
+                <label class="text-xs text-slate-400 font-semibold">Konuşma / Tanıtım Metni:</label>
+                <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 text-xs text-slate-300 font-mono">
+                    "Kendi metropolünü kurmaya hazır mısın? Şehir Hayatı oyunu ile tesislerini işlet, siparişleri teslim et, altın kazan ve şehrini sonsuz bölgelerle büyüt! İnternetsiz çevrimdışı hemen oyna."
+                </div>
+
+                <label class="text-xs text-slate-400 font-semibold block pt-2">Oyun Linki:</label>
+                <div class="flex items-center space-x-2">
+                    <input id="game-link-input" type="text" readonly value="https://sehirhayatioyunu.local/play" class="bg-slate-900 text-sky-400 text-xs font-mono px-3 py-2.5 rounded-xl border border-slate-700 flex-1 outline-none">
+                    <button id="copy-btn" onclick="copyGameLink()" class="btn-game bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 whitespace-nowrap">
+                        <i class="fa-regular fa-copy"></i>
+                        <span>Linki Kopyala</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeModal('script-modal')" class="btn-game bg-slate-700 hover:bg-slate-600 text-white font-game px-5 py-2.5 rounded-xl text-sm">
+                    Kapat
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- GAME DATA STRUCTURES ---
+        const INITIAL_STATE = {
+            gold: 200,
+            xp: 0,
+            level: 1,
+            inventory: {
+                bread: 2,
+                coffee: 1
+            },
+            unlockedDistricts: [1], // District IDs unlocked
+            productionTimers: {}, // buildingId -> { itemKey, endTime, totalDuration }
+            orders: []
+        };
+
+        let gameState = {};
+
+        // Districts Definition (Infinite Progression Support)
+        const DISTRICTS = [
+            {
+                id: 1,
+                name: "Merkez Yaşam Bölgesi",
+                reqLevel: 1,
+                unlockCost: 0,
+                icon: "fa-house-user",
+                color: "from-amber-500/20 to-orange-500/20 border-amber-500/40",
+                buildings: [
+                    { id: "bakery", name: "Halk Fırını", icon: "fa-bread-slice", itemKey: "bread", itemName: "Taze Ekmek", duration: 5, goldCost: 0, xpYield: 15, goldYield: 20 },
+                    { id: "cafe", name: "Kahve Dükkanı", icon: "fa-mug-hot", itemKey: "coffee", itemName: "Espresso", duration: 10, goldCost: 10, xpYield: 25, goldYield: 35 }
+                ]
+            },
+            {
+                id: 2,
+                name: "Ulaşım & Ticaret Parkı",
+                reqLevel: 2,
+                unlockCost: 250,
+                icon: "fa-bus-simple",
+                color: "from-blue-500/20 to-cyan-500/20 border-blue-500/40",
+                buildings: [
+                    { id: "bus", name: "Otobüs Terminali", icon: "fa-bus", itemKey: "ticket", itemName: "Şehir Bilesi", duration: 15, goldCost: 25, xpYield: 40, goldYield: 55 },
+                    { id: "market", name: "Süpermarket", icon: "fa-cart-shopping", itemKey: "groceries", itemName: "Gıda Paketi", duration: 20, goldCost: 40, xpYield: 60, goldYield: 80 }
+                ]
+            },
+            {
+                id: 3,
+                name: "Finans & İş Merkezi",
+                reqLevel: 4,
+                unlockCost: 600,
+                icon: "fa-building-columns",
+                color: "from-emerald-500/20 to-teal-500/20 border-emerald-500/40",
+                buildings: [
+                    { id: "bank", name: "Şehir Bankası", icon: "fa-vault", itemKey: "credit", itemName: "Kredi Onayı", duration: 30, goldCost: 80, xpYield: 100, goldYield: 140 },
+                    { id: "mall", name: "Alışveriş Merkezi", icon: "fa-bag-shopping", itemKey: "fashion", itemName: "Moda Ürünü", duration: 40, goldCost: 120, xpYield: 150, goldYield: 210 }
+                ]
+            },
+            {
+                id: 4,
+                name: "İnovasyon & Teknoloji Vadisi",
+                reqLevel: 6,
+                unlockCost: 1500,
+                icon: "fa-microchip",
+                color: "from-purple-500/20 to-indigo-500/20 border-purple-500/40",
+                buildings: [
+                    { id: "tech", name: "Teknoloji Üssü", icon: "fa-laptop-code", itemKey: "software", itemName: "Yazılım Güncellemesi", duration: 60, goldCost: 250, xpYield: 280, goldYield: 400 },
+                    { id: "energy", name: "Güneş Santrali", icon: "fa-solar-panel", itemKey: "power", itemName: "Temiz Enerji", duration: 90, goldCost: 400, xpYield: 450, goldYield: 650 }
+                ]
+            }
+        ];
+
+        // All Items Reference Table
+        const ITEMS_MAP = {
+            bread: { name: "Taze Ekmek", icon: "fa-bread-slice", color: "text-amber-400" },
+            coffee: { name: "Espresso", icon: "fa-mug-hot", color: "text-amber-600" },
+            ticket: { name: "Şehir Bilet", icon: "fa-ticket", color: "text-sky-400" },
+            groceries: { name: "Gıda Paketi", icon: "fa-basket-shopping", color: "text-emerald-400" },
+            credit: { name: "Kredi Onayı", icon: "fa-file-invoice-dollar", color: "text-green-400" },
+            fashion: { name: "Moda Ürünü", icon: "fa-shirt", color: "text-pink-400" },
+            software: { name: "Yazılım Paketi", icon: "fa-code", color: "text-purple-400" },
+            power: { name: "Temiz Enerji", icon: "fa-bolt", color: "text-yellow-300" }
+        };
+
+        // --- GAME INITIALIZATION ---
+        function initGame() {
+            loadGame();
+            if (!gameState.orders || gameState.orders.length === 0) {
+                generateOrders();
+            }
+            renderHeader();
+            renderDistricts();
+            renderOrders();
+            renderInventory();
+
+            // Game Loop for Production Timers
+            setInterval(gameLoop, 1000);
+        }
+
+        // --- LOCAL STORAGE FUNCTIONS ---
+        function saveGame() {
+            try {
+                localStorage.setItem('sehir_hayati_save', JSON.stringify(gameState));
+            } catch (e) {
+                console.error("Kaydetme hatası:", e);
+            }
+        }
+
+        function loadGame() {
+            const saved = localStorage.getItem('sehir_hayati_save');
+            if (saved) {
+                try {
+                    gameState = JSON.parse(saved);
+                } catch (e) {
+                    gameState = JSON.parse(JSON.stringify(INITIAL_STATE));
+                }
+            } else {
+                gameState = JSON.parse(JSON.stringify(INITIAL_STATE));
+            }
+        }
+
+        function resetGame() {
+            if (confirm("Tüm şehir ilerlemeniz sıfırlanacak. Emin misiniz?")) {
+                localStorage.removeItem('sehir_hayati_save');
+                gameState = JSON.parse(JSON.stringify(INITIAL_STATE));
+                generateOrders();
+                saveGame();
+                renderHeader();
+                renderDistricts();
+                renderOrders();
+                renderInventory();
+                showToast("Şehir sıfırlandı!", "info");
+            }
+        }
+
+        // --- GAME LOOP & PRODUCTION SYSTEM ---
+        function gameLoop() {
+            let updated = false;
+            const now = Date.now();
+
+            for (const bId in gameState.productionTimers) {
+                const prod = gameState.productionTimers[bId];
+                if (prod && now >= prod.endTime) {
+                    // Production Finished!
+                    const itemKey = prod.itemKey;
+                    gameState.inventory[itemKey] = (gameState.inventory[itemKey] || 0) + 1;
+                    
+                    // Add XP yield
+                    addXP(prod.xpYield || 10);
+
+                    showToast(`+1 ${ITEMS_MAP[itemKey]?.name || 'Ürün'} Üretildi!`, "success");
+                    
+                    delete gameState.productionTimers[bId];
+                    updated = true;
+                } else if (prod) {
+                    // Update progress bar in UI if visible
+                    updateBuildingProgressBar(bId, prod);
+                }
+            }
+
+            if (updated) {
+                saveGame();
+                renderInventory();
+                renderDistricts();
+            }
+        }
+
+        function startProduction(buildingId, itemKey, durationSec, goldCost, xpYield) {
+            // Check Gold Cost
+            if (gameState.gold < goldCost) {
+                showToast("Yetersiz Altın!", "error");
+                return;
+            }
+
+            // Check if already producing
+            if (gameState.productionTimers[buildingId]) {
+                showToast("Bu tesis zaten üretim yapıyor!", "warning");
+                return;
+            }
+
+            // Deduct Gold
+            gameState.gold -= goldCost;
+            
+            // Set Timer
+            const endTime = Date.now() + (durationSec * 1000);
+            gameState.productionTimers[buildingId] = {
+                itemKey,
+                endTime,
+                totalDuration: durationSec,
+                xpYield
+            };
+
+            saveGame();
+            renderHeader();
+            renderDistricts();
+            showToast("Üretim Başladı!", "info");
+        }
+
+        function updateBuildingProgressBar(buildingId, prod) {
+            const bar = document.getElementById(`prog-bar-${buildingId}`);
+            const text = document.getElementById(`prog-text-${buildingId}`);
+            if (!bar || !text) return;
+
+            const remaining = Math.max(0, Math.ceil((prod.endTime - Date.now()) / 1000));
+            const percent = Math.min(100, Math.max(0, ((prod.totalDuration - remaining) / prod.totalDuration) * 100));
+
+            bar.style.width = `${percent}%`;
+            text.textContent = `${remaining}s`;
+        }
+
+        // --- LEVEL & REWARDS ---
+        function addXP(amount) {
+            gameState.xp += amount;
+            const xpNeeded = gameState.level * 100;
+            if (gameState.xp >= xpNeeded) {
+                gameState.xp -= xpNeeded;
+                gameState.level += 1;
+                showToast(`TEBRİKLER! Seviye ${gameState.level} oldunuz! 🎉`, "success");
+            }
+            renderHeader();
+            renderDistricts();
+        }
+
+        // --- DISTRICT UNLOCK SYSTEM ---
+        function unlockDistrict(districtId, cost) {
+            if (gameState.gold < cost) {
+                showToast("Yetersiz Altın!", "error");
+                return;
+            }
+
+            gameState.gold -= cost;
+            gameState.unlockedDistricts.push(districtId);
+            saveGame();
+            renderHeader();
+            renderDistricts();
+            showToast("Yeni Şehir Bölgesi Açıldı! 🏙️", "success");
+        }
+
+        // --- DYNAMIC ORDERS SYSTEM ---
+        function generateOrders() {
+            const availableItems = Object.keys(ITEMS_MAP);
+            const newOrders = [];
+
+            // Generate 3 random orders based on player level
+            for (let i = 0; i < 3; i++) {
+                const randomItem = availableItems[Math.floor(Math.random() * availableItems.length)];
+                const count = Math.floor(Math.random() * 2) + 1;
+                const goldReward = count * (Math.floor(Math.random() * 30) + 40);
+                const xpReward = count * (Math.floor(Math.random() * 20) + 25);
+
+                newOrders.push({
+                    id: Date.now() + i,
+                    itemKey: randomItem,
+                    count: count,
+                    goldReward: goldReward,
+                    xpReward: xpReward,
+                    citizenName: ["Ahmet Bey", "Ayşe Hanım", "Mimar Selim", "Öğrenci Can", "Dr. Zeynep"][Math.floor(Math.random() * 5)]
+                });
+            }
+
+            gameState.orders = newOrders;
+            saveGame();
+        }
+
+        function completeOrder(orderId) {
+            const index = gameState.orders.findIndex(o => o.id === orderId);
+            if (index === -1) return;
+
+            const order = gameState.orders[index];
+            const currentItemCount = gameState.inventory[order.itemKey] || 0;
+
+            if (currentItemCount < order.count) {
+                showToast("Yeterli ürün yok!", "error");
+                return;
+            }
+
+            // Deduct items
+            gameState.inventory[order.itemKey] -= order.count;
+            if (gameState.inventory[order.itemKey] <= 0) {
+                delete gameState.inventory[order.itemKey];
+            }
+
+            // Give Rewards
+            gameState.gold += order.goldReward;
+            addXP(order.xpReward);
+
+            // Remove order & generate new one
+            gameState.orders.splice(index, 1);
+            
+            // Add a new order after delay
+            setTimeout(() => {
+                const availableItems = Object.keys(ITEMS_MAP);
+                const randomItem = availableItems[Math.floor(Math.random() * availableItems.length)];
+                const count = Math.floor(Math.random() * 2) + 1;
+                gameState.orders.push({
+                    id: Date.now(),
+                    itemKey: randomItem,
+                    count: count,
+                    goldReward: count * 50,
+                    xpReward: count * 30,
+                    citizenName: "Müşteri"
+                });
+                saveGame();
+                renderOrders();
+            }, 2000);
+
+            saveGame();
+            renderHeader();
+            renderOrders();
+            renderInventory();
+            showToast(`Sipariş Teslim Edildi! +${order.goldReward} Gold`, "success");
+        }
+
+        // --- UI RENDERERS ---
+        function renderHeader() {
+            document.getElementById('player-level').textContent = gameState.level;
+            document.getElementById('player-gold').textContent = gameState.gold.toLocaleString();
+
+            const xpNeeded = gameState.level * 100;
+            const xpPercent = Math.min(100, (gameState.xp / xpNeeded) * 100);
+            document.getElementById('xp-bar').style.width = `${xpPercent}%`;
+            document.getElementById('xp-text').textContent = `${gameState.xp}/${xpNeeded}`;
+
+            // Total inventory count
+            const totalInv = Object.values(gameState.inventory).reduce((a, b) => a + b, 0);
+            document.getElementById('inv-count').textContent = totalInv;
+        }
+
+        function renderDistricts() {
+            const container = document.getElementById('city-districts-container');
+            container.innerHTML = '';
+
+            DISTRICTS.forEach(dist => {
+                const isUnlocked = gameState.unlockedDistricts.includes(dist.id);
+                const canUnlock = gameState.level >= dist.reqLevel;
+
+                const card = document.createElement('div');
+                card.className = `bg-slate-800/90 rounded-3xl p-5 border shadow-xl relative overflow-hidden flex flex-col justify-between ${dist.color}`;
+
+                if (isUnlocked) {
+                    // Render Buildings inside District
+                    let buildingsHTML = '';
+                    dist.buildings.forEach(b => {
+                        const prod = gameState.productionTimers[b.id];
+                        const isProducing = !!prod;
+
+                        buildingsHTML += `
+                            <div class="bg-slate-900/80 p-3.5 rounded-2xl border border-slate-700/80 flex flex-col justify-between space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-2.5">
+                                        <div class="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center text-amber-400 text-lg border border-slate-700">
+                                            <i class="fa-solid ${b.icon}"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="font-bold text-sm text-white">${b.name}</h4>
+                                            <p class="text-[11px] text-slate-400">Ürün: <span class="text-amber-300 font-semibold">${b.itemName}</span></p>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="text-xs text-amber-400 font-bold block">${b.goldCost} Gold</span>
+                                        <span class="text-[10px] text-slate-400">${b.duration} sn</span>
+                                    </div>
+                                </div>
+
+                                <!-- Progress / Action Button -->
+                                ${isProducing ? `
+                                    <div class="space-y-1">
+                                        <div class="flex justify-between text-[11px] text-slate-400 font-semibold">
+                                            <span>Üretiliyor...</span>
+                                            <span id="prog-text-${b.id}">--</span>
+                                        </div>
+                                        <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-700">
+                                            <div id="prog-bar-${b.id}" class="bg-amber-400 h-full w-0 transition-all duration-200"></div>
+                                        </div>
+                                    </div>
+                                ` : `
+                                    <button onclick="startProduction('${b.id}', '${b.itemKey}', ${b.duration}, ${b.goldCost}, ${b.xpYield})" class="btn-game w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-game text-xs py-2 rounded-xl flex items-center justify-center gap-1.5">
+                                        <i class="fa-solid fa-play text-xs"></i> Üretime Başla
+                                    </button>
+                                `}
+                            </div>
+                        `;
+                    });
+
+                    card.innerHTML = `
+                        <div>
+                            <div class="flex items-center justify-between mb-4 border-b border-slate-700/60 pb-3">
+                                <div class="flex items-center space-x-2.5">
+                                    <i class="fa-solid ${dist.icon} text-amber-400 text-xl"></i>
+                                    <h3 class="font-game text-lg text-white">${dist.name}</h3>
+                                </div>
+                                <span class="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2.5 py-1 rounded-full border border-emerald-500/30">Açık</span>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                ${buildingsHTML}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Locked District View
+                    card.innerHTML = `
+                        <div class="flex flex-col items-center justify-center text-center py-8 space-y-3">
+                            <div class="w-14 h-14 bg-slate-900/80 rounded-2xl flex items-center justify-center text-slate-500 text-2xl border border-slate-700">
+                                <i class="fa-solid fa-lock"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-game text-lg text-slate-300">${dist.name}</h3>
+                                <p class="text-xs text-slate-400 mt-1">Gereken Seviye: <span class="text-amber-400 font-bold">${dist.reqLevel}</span></p>
+                            </div>
+                            
+                            ${canUnlock ? `
+                                <button onclick="unlockDistrict(${dist.id}, ${dist.unlockCost})" class="btn-game bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-game text-xs px-5 py-2.5 rounded-xl flex items-center gap-2 mt-2">
+                                    <i class="fa-solid fa-key"></i> Kilidi Aç (${dist.unlockCost} Gold)
+                                </button>
+                            ` : `
+                                <div class="bg-slate-900/60 text-slate-500 text-xs px-4 py-2 rounded-xl border border-slate-800">
+                                    Seviye ${dist.reqLevel} Ulaşınca Açılır
+                                </div>
+                            `}
+                        </div>
+                    `;
+                }
+
+                container.appendChild(card);
+            });
+        }
+
+        function renderOrders() {
+            const list = document.getElementById('orders-list');
+            list.innerHTML = '';
+
+            if (gameState.orders.length === 0) {
+                list.innerHTML = `<p class="text-xs text-slate-500 text-center py-4">Yeni siparişler bekleniyor...</p>`;
+                return;
+            }
+
+            gameState.orders.forEach(order => {
+                const item = ITEMS_MAP[order.itemKey] || { name: order.itemKey, icon: 'fa-box', color: 'text-amber-400' };
+                const currentInv = gameState.inventory[order.itemKey] || 0;
+                const hasEnough = currentInv >= order.count;
+
+                const card = document.createElement('div');
+                card.className = `bg-slate-900 p-3.5 rounded-2xl border ${hasEnough ? 'border-amber-500/50' : 'border-slate-700/80'} space-y-2.5`;
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="text-[11px] text-slate-400 font-semibold block">${order.citizenName} İstiyor:</span>
+                            <div class="flex items-center space-x-2 mt-0.5">
+                                <i class="fa-solid ${item.icon} ${item.color} text-base"></i>
+                                <span class="text-xs text-white font-bold">${item.name} x${order.count}</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs font-bold text-amber-400 block">+${order.goldReward} Gold</span>
+                            <span class="text-[10px] text-sky-400 font-semibold">+${order.xpReward} XP</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-1">
+                        <span class="text-[11px] ${hasEnough ? 'text-emerald-400' : 'text-rose-400'} font-semibold">
+                            Elde Var: ${currentInv}/${order.count}
+                        </span>
+                        <button onclick="completeOrder(${order.id})" ${!hasEnough ? 'disabled' : ''} class="btn-game px-3 py-1.5 rounded-xl font-game text-xs ${hasEnough ? 'bg-amber-500 hover:bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-600 cursor-not-allowed'} flex items-center gap-1">
+                            <i class="fa-solid fa-check"></i> Teslim Et
+                        </button>
+                    </div>
+                `;
+
+                list.appendChild(card);
+            });
+        }
+
+        function renderInventory() {
+            const container = document.getElementById('inventory-list');
+            container.innerHTML = '';
+
+            const keys = Object.keys(gameState.inventory);
+
+            if (keys.length === 0) {
+                container.innerHTML = `<div class="col-span-2 text-center text-xs text-slate-500 py-6">Deponuz boş. Tesislerde üretim yapın!</div>`;
+                return;
+            }
+
+            keys.forEach(key => {
+                const count = gameState.inventory[key];
+                if (count <= 0) return;
+
+                const item = ITEMS_MAP[key] || { name: key, icon: 'fa-box', color: 'text-amber-400' };
+
+                const card = document.createElement('div');
+                card.className = "bg-slate-900 p-3 rounded-2xl border border-slate-700/80 flex items-center space-x-3";
+                card.innerHTML = `
+                    <div class="w-8 h-8 bg-slate-800 rounded-xl flex items-center justify-center ${item.color} text-lg">
+                        <i class="fa-solid ${item.icon}"></i>
+                    </div>
+                    <div>
+                        <h5 class="text-xs text-white font-bold">${item.name}</h5>
+                        <span class="text-[11px] text-amber-400 font-bold">Miktar: ${count}</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // --- TAB & MODAL HELPERS ---
+        function switchTab(tab) {
+            const ordersTab = document.getElementById('tab-orders');
+            const invTab = document.getElementById('tab-inventory');
+            const ordersBtn = document.getElementById('tab-orders-btn');
+            const invBtn = document.getElementById('tab-inventory-btn');
+
+            if (tab === 'orders') {
+                ordersTab.classList.remove('hidden');
+                invTab.classList.add('hidden');
+                ordersBtn.className = "flex-1 py-3 font-game text-sm text-amber-400 border-b-2 border-amber-400 flex items-center justify-center gap-2 bg-slate-800";
+                invBtn.className = "flex-1 py-3 font-game text-sm text-slate-400 border-b-2 border-transparent flex items-center justify-center gap-2 hover:text-slate-200";
+            } else {
+                ordersTab.classList.add('hidden');
+                invTab.classList.remove('hidden');
+                invBtn.className = "flex-1 py-3 font-game text-sm text-amber-400 border-b-2 border-amber-400 flex items-center justify-center gap-2 bg-slate-800";
+                ordersBtn.className = "flex-1 py-3 font-game text-sm text-slate-400 border-b-2 border-transparent flex items-center justify-center gap-2 hover:text-slate-200";
+            }
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function copyGameLink() {
+            const input = document.getElementById('game-link-input');
+            input.select();
+            input.setSelectionRange(0, 99999);
+            
+            try {
+                document.execCommand('copy');
+                const btn = document.getElementById('copy-btn');
+                btn.innerHTML = `<i class="fa-solid fa-check"></i> <span>Kopyalandı!</span>`;
+                btn.classList.replace('bg-sky-500', 'bg-emerald-500');
+                
+                setTimeout(() => {
+                    btn.innerHTML = `<i class="fa-regular fa-copy"></i> <span>Linki Kopyala</span>`;
+                    btn.classList.replace('bg-emerald-500', 'bg-sky-500');
+                }, 2000);
+
+                showToast("Link panoya kopyalandı!", "success");
+            } catch (err) {
+                showToast("Kopyalama başarısız oldu.", "error");
+            }
+        }
+
+        function showToast(message, type = "info") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+
+            let typeStyles = "bg-slate-800 text-slate-200 border-slate-700";
+            if (type === "success") typeStyles = "bg-emerald-600 text-white border-emerald-400";
+            if (type === "error") typeStyles = "bg-rose-600 text-white border-rose-400";
+            if (type === "warning") typeStyles = "bg-amber-600 text-white border-amber-400";
+
+            toast.className = `px-4 py-2.5 rounded-2xl border shadow-lg text-xs font-bold font-game tracking-wide transition-all duration-300 transform translate-y-2 opacity-0 ${typeStyles}`;
+            toast.textContent = message;
+
+            container.appendChild(toast);
+
+            // Animate in
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            // Remove after 2.5s
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 2500);
+        }
+
+        // --- WINDOW LOAD EVENT ---
+        window.onload = function () {
+            initGame();
+        };
+    </script>
+</body>
+</html>
